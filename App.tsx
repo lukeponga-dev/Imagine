@@ -2,11 +2,16 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import ImageUploader from './components/ImageUploader';
 import EnhancedImageDisplay from './components/EnhancedImageDisplay';
 import { enhanceImage } from './services/geminiService';
-// Fix: Import ApiError as a class
-import { ApiError } from './types';
-import { API_KEY_BILLING_URL, LOADING_MESSAGES } from './constants';
+// Fix: Import AIStudio from types.ts
+import { ApiError, AIStudio } from './types';
+import { API_KEY_BILLING_URL, LOADING_MESSAGES, RESOLUTION_OPTIONS, DEFAULT_RESOLUTION } from './constants';
 
-// Fix: Removed declare global block as it's now in types.ts
+declare global {
+  interface Window {
+    // Fix: Use the imported AIStudio interface
+    aistudio?: AIStudio;
+  }
+}
 
 function App() {
   const [originalImage, setOriginalImage] = useState<string | undefined>(undefined);
@@ -17,23 +22,21 @@ function App() {
   const [error, setError] = useState<string | undefined>(undefined);
   const [hasApiKeySelected, setHasApiKeySelected] = useState<boolean>(true);
   const [currentLoadingMessage, setCurrentLoadingMessage] = useState<string>('');
+  const [selectedResolution, setSelectedResolution] = useState<string>(DEFAULT_RESOLUTION);
 
   // Check API key status on component mount
   useEffect(() => {
     const checkApiKey = async () => {
-      // Fix: Access window.aistudio directly as its type is now globally declared
       if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
         const selected = await window.aistudio.hasSelectedApiKey();
         setHasApiKeySelected(selected);
       } else {
-        // If aistudio is not available, assume API_KEY env var is the source.
-        // For local development, this will typically be true.
+        // Fallback for environments where window.aistudio might not be available
         setHasApiKeySelected(!!process.env.API_KEY);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     checkApiKey();
-  }, []); // Run only once on mount
+  }, []);
 
   // Cycle through loading messages
   useEffect(() => {
@@ -61,6 +64,7 @@ function App() {
     setPrompt('');
     setEnhancedImage(undefined);
     setError(undefined);
+    setSelectedResolution(DEFAULT_RESOLUTION); // Reset resolution
   }, []);
 
   const handleClearAll = useCallback(() => {
@@ -73,10 +77,8 @@ function App() {
       return;
     }
 
-    // More robust API key validation: Check for the presence of API_KEY before proceeding
-    // The `geminiService` also checks this, but an early exit here provides faster feedback.
     if (!process.env.API_KEY) {
-      setHasApiKeySelected(false); // Update state to reflect missing key
+      setHasApiKeySelected(false);
       setError('API_KEY is not configured. Please select your API key.');
       return;
     }
@@ -91,22 +93,30 @@ function App() {
     setEnhancedImage(undefined);
 
     try {
-      const result = await enhanceImage(originalImage, prompt, originalImageMimeType);
+      const result = await enhanceImage(originalImage, prompt, originalImageMimeType, selectedResolution);
       setEnhancedImage(result);
     } catch (err: unknown) {
       console.error('Enhancement Error:', err);
-      // Fix: Use instanceof to correctly narrow the type and access properties safely
       if (err instanceof ApiError) {
-        if (err.statusCode === 401 && err.message.includes("Requested entity was not found.")) {
-          setHasApiKeySelected(false); // Reset API key selection state
-          setError(`API Key Invalid: ${err.message}`);
+        let userMessage = 'Enhancement failed. Please try again.';
+        if (err.statusCode === 401 || err.errorType === 'API_KEY_INVALID') {
+          setHasApiKeySelected(false);
+          userMessage = `API Key Invalid or Missing Permissions: ${err.message}. Please re-select your API key.`;
+        } else if (err.statusCode === 403 || err.errorType === 'PERMISSION_DENIED') {
+          userMessage = `Permission Denied: Your API key might not have the necessary permissions. Please check your GCP project settings.`;
+        } else if (err.statusCode === 400 || err.errorType === 'BAD_REQUEST') {
+          userMessage = `Invalid Request: The AI could not process your request. Please refine your prompt, image, or resolution. Details: ${err.message}`;
+        } else if (err.statusCode === 429 || err.errorType === 'RESOURCE_EXHAUSTED') {
+          userMessage = `Rate Limit Exceeded: You've sent too many requests. Please wait a moment and try again.`;
+        } else if (err.errorType === 'MODEL_TEXT_RESPONSE') {
+          userMessage = `The AI responded with text instead of an image: "${err.errorDetails}". Please adjust your prompt.`;
         } else {
-          setError(`Enhancement failed: ${err.message}`);
+          userMessage = `An API error occurred: ${err.message || 'Unknown API error.'}`;
         }
+        setError(userMessage);
       } else if (err instanceof Error) {
-        // Check for specific error message related to API key from general error
         if (err.message.includes("API Key error: Please select a valid API key")) {
-          setHasApiKeySelected(false); // Reset API key selection state
+          setHasApiKeySelected(false);
           setError(err.message);
         } else {
           setError(`An unexpected error occurred: ${err.message}`);
@@ -117,17 +127,19 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [originalImage, prompt, originalImageMimeType, hasApiKeySelected]);
+  }, [originalImage, prompt, originalImageMimeType, hasApiKeySelected, selectedResolution]);
 
   const handleSelectApiKey = useCallback(async () => {
-    // Fix: Access window.aistudio directly as its type is now globally declared
     if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
-      await window.aistudio.openSelectKey();
-      // Assume selection was successful, proceed.
-      // A race condition can occur where hasSelectedApiKey() may not immediately return true after
-      // the user selects a key. We assume success and proceed.
-      setHasApiKeySelected(true);
-      setError(undefined); // Clear any previous API key errors
+      try {
+        await window.aistudio.openSelectKey();
+        // Assume success for race condition mitigation as per guidelines
+        setHasApiKeySelected(true);
+        setError(undefined); // Clear any previous API key errors on successful selection attempt
+      } catch (keyError) {
+        console.error("Error opening API key selection:", keyError);
+        setError("Failed to open API key selection. Please try again.");
+      }
     } else {
       setError('window.aistudio.openSelectKey() is not available. Ensure you are in the correct environment.');
     }
@@ -191,6 +203,22 @@ function App() {
               disabled={isLoading}
               className="flex-grow p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed text-gray-700"
             />
+            <div className="flex flex-col md:flex-row items-center gap-2">
+              <label htmlFor="resolution-select" className="text-gray-700 text-sm md:text-base font-medium whitespace-nowrap">Resolution:</label>
+              <select
+                id="resolution-select"
+                value={selectedResolution}
+                onChange={(e) => setSelectedResolution(e.target.value)}
+                disabled={isLoading}
+                className="p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed text-gray-700 w-full md:w-auto"
+              >
+                {RESOLUTION_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             <button
               onClick={handleEnhanceClick}
               disabled={isEnhanceButtonDisabled}
@@ -225,13 +253,19 @@ function App() {
           <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mt-6 rounded-md shadow-sm w-full max-w-2xl mx-auto">
             <p className="font-bold">Error:</p>
             <p>{error}</p>
-            {error.includes("API Key Invalid") && (
+            {(error.includes("API Key Invalid") || error.includes("API Key error")) && (
               <button
                 onClick={handleSelectApiKey}
                 className="mt-3 px-4 py-2 bg-red-600 text-white font-semibold rounded-md hover:bg-red-700 transition-colors"
               >
                 Re-select API Key
               </button>
+            )}
+            {/* Added a general recommendation for non-key related errors if appropriate */}
+            {!error.includes("API Key") && !error.includes("Invalid Request") && (
+              <p className="text-sm mt-2">
+                If the problem persists, try a different prompt or image.
+              </p>
             )}
           </div>
         )}

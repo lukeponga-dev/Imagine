@@ -9,3 +9,11 @@ export const LOADING_MESSAGES = [
   'Just a moment, your masterpiece is brewing...',
   'Our AI is hard at work!',
 ];
+
+export const RESOLUTION_OPTIONS = [
+  { value: '1K', label: '1K (1024x1024)' },
+  { value: '2K', label: '2K (2048x2048)' },
+  { value: '4K', label: '4K (4096x4096)' },
+];
+
+export const DEFAULT_RESOLUTION = '1K';

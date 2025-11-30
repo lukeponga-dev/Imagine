@@ -1,4 +1,5 @@
 
+
 export interface ImagePart {
   inlineData: {
     mimeType: string;
@@ -14,14 +15,23 @@ export interface ApiResponsePart {
   text?: string;
 }
 
-// Fix: Changed from interface to class to allow instantiation
+// Define the global AIStudio interface as per the coding guidelines.
+export interface AIStudio {
+  hasSelectedApiKey: () => Promise<boolean>;
+  openSelectKey: () => Promise<void>;
+}
+
 export class ApiError extends Error {
   statusCode?: number;
+  errorType?: string; // e.g., 'API_KEY_INVALID', 'MODEL_ERROR', 'NETWORK_ERROR'
+  errorDetails?: any; // More detailed error object or message
 
-  constructor(message: string, statusCode?: number) {
+  constructor(message: string, statusCode?: number, errorType?: string, errorDetails?: any) {
     super(message);
     this.name = 'ApiError'; // Set the name of the error class
     this.statusCode = statusCode;
+    this.errorType = errorType;
+    this.errorDetails = errorDetails;
 
     // This is important for correctly extending built-in classes in TypeScript
     // and for correct instanceof checks.

@@ -9,12 +9,14 @@ import { GEMINI_IMAGE_MODEL } from '../constants';
  * @param originalImage The base64 encoded original image data.
  * @param prompt The text prompt describing the enhancement.
  * @param mimeType The MIME type of the original image (e.g., 'image/png', 'image/jpeg').
+ * @param resolution The desired output resolution (e.g., '1K', '2K', '4K').
  * @returns A promise that resolves with the base64 encoded enhanced image data, or throws an ApiError.
  */
 export const enhanceImage = async (
   originalImage: string,
   prompt: string,
   mimeType: string,
+  resolution: string,
 ): Promise<string> => {
   if (!process.env.API_KEY) {
     throw new Error("API_KEY is not set.");
@@ -42,7 +44,7 @@ export const enhanceImage = async (
       config: {
         imageConfig: {
           aspectRatio: "1:1", // Default to 1:1, can be made configurable if needed
-          imageSize: "1K" // Default to 1K, can be made configurable if needed
+          imageSize: resolution // Use the selected resolution
         },
       },
     });
@@ -58,27 +60,57 @@ export const enhanceImage = async (
       // If no image data is found, check if there's a text explanation
       const textExplanation = response.text;
       if (textExplanation) {
-        // Fix: Use the ApiError class constructor
-        throw new ApiError(`Model returned text: "${textExplanation}". No image data found.`, 200);
+        throw new ApiError(
+          `Model returned text: "${textExplanation}". No image data found.`,
+          200,
+          'MODEL_TEXT_RESPONSE',
+          textExplanation
+        );
       }
-      // Fix: Use the ApiError class constructor
-      throw new ApiError('No enhanced image data found in the response.', 500);
+      throw new ApiError('No enhanced image data found in the response.', 500, 'NO_IMAGE_DATA');
     }
   } catch (error: unknown) {
     console.error('Gemini API Error:', error);
-    // Fix: Use instanceof to check the type of error and access properties safely
     if (error instanceof ApiError) {
       throw error;
     } else if (error instanceof Error) {
-      // Check for specific error message related to API key
       if (error.message.includes("Requested entity was not found.")) {
-        // Fix: Use the ApiError class constructor
-        throw new ApiError("API Key error: Please select a valid API key from a paid GCP project. You might need to re-select your API key.", 401);
+        throw new ApiError(
+          "API Key error: Please select a valid API key from a paid GCP project. You might need to re-select your API key.",
+          401,
+          'API_KEY_INVALID'
+        );
       }
-      // Fix: Use the ApiError class constructor
-      throw new ApiError(error.message || 'An unknown error occurred during image enhancement.', 500);
+      // Attempt to parse common API error structures if available
+      let statusCode: number | undefined;
+      let errorType: string = 'UNKNOWN_ERROR';
+      let errorDetails: any;
+
+      if (error.message.includes('400 BAD_REQUEST')) {
+        statusCode = 400;
+        errorType = 'BAD_REQUEST';
+        errorDetails = error.message.split('400 BAD_REQUEST: ')[1] || error.message;
+      } else if (error.message.includes('403 PERMISSION_DENIED')) {
+        statusCode = 403;
+        errorType = 'PERMISSION_DENIED';
+        errorDetails = error.message.split('403 PERMISSION_DENIED: ')[1] || error.message;
+      } else if (error.message.includes('429 RESOURCE_EXHAUSTED')) {
+        statusCode = 429;
+        errorType = 'RESOURCE_EXHAUSTED';
+        errorDetails = error.message.split('429 RESOURCE_EXHAUSTED: ')[1] || error.message;
+      } else if (error.message.includes('500 INTERNAL_SERVER_ERROR')) {
+        statusCode = 500;
+        errorType = 'INTERNAL_SERVER_ERROR';
+        errorDetails = error.message.split('500 INTERNAL_SERVER_ERROR: ')[1] || error.message;
+      }
+
+      throw new ApiError(
+        error.message || 'An unknown error occurred during image enhancement.',
+        statusCode,
+        errorType,
+        errorDetails
+      );
     }
-    // Fix: Use the ApiError class constructor
-    throw new ApiError('An unknown error occurred during image enhancement.', 500);
+    throw new ApiError('An unknown error occurred during image enhancement.', 500, 'UNKNOWN_ERROR');
   }
 };
