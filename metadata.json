@@ -1,0 +1,5 @@
+{
+  "name": "Image Enhancer AI",
+  "description": "Upload an image and use AI to enhance or transform it with a text prompt. Uses the Gemini Pro Vision model for high-quality image manipulation.",
+  "requestFramePermissions": []
+}
