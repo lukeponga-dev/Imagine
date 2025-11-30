@@ -5,11 +5,9 @@ services:
     name: image-enhancer-ai
     buildCommand: npm install && npm run build
     publishPath: dist
-
-    # Optional environment variables (set in Render dashboard)
-    # envVars:
-    #   - key: API_KEY
-    #     value: your-api-key-here
+    envVars:
+      - key: API_KEY
+        value: AIzaSyD8W8aco1C2t5remQyE   # 🔑 Replace with your actual API key
 
     # Optional rewrites for client-side routing (React Router, etc.)
     # rewrites:
