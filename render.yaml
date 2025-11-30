@@ -1,15 +1,15 @@
 # This file describes how your application is built and deployed on Render.com
 
 services:
-  - type: web  # ✅ Correct type for static frontend apps
+  - type: static        # ✅ Correct type for static frontend apps
     name: image-enhancer-ai
     buildCommand: npm install && npm run build
     publishPath: dist
     envVars:
       - key: API_KEY
-        value: AIzaSyD8W8aco1C2t5remQyE   # 🔑 Replace with your actual API key
+        value: your-api-key-here   # 🔑 Replace with your actual API key
 
-    # Optional rewrites for client-side routing (React Router, etc.)
-    # rewrites:
-    #   - source: /*
-    #     destination: /index.html
+    # Optional rewrites for client-side routing (React Router, Vue Router, etc.)
+    rewrites:
+      - source: /*
+       destination: /index.html
