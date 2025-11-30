@@ -73,6 +73,14 @@ function App() {
       return;
     }
 
+    // More robust API key validation: Check for the presence of API_KEY before proceeding
+    // The `geminiService` also checks this, but an early exit here provides faster feedback.
+    if (!process.env.API_KEY) {
+      setHasApiKeySelected(false); // Update state to reflect missing key
+      setError('API_KEY is not configured. Please select your API key.');
+      return;
+    }
+
     if (!hasApiKeySelected) {
       setError('Please select your API key before enhancing images.');
       return;
@@ -96,7 +104,13 @@ function App() {
           setError(`Enhancement failed: ${err.message}`);
         }
       } else if (err instanceof Error) {
-        setError(`An unexpected error occurred: ${err.message}`);
+        // Check for specific error message related to API key from general error
+        if (err.message.includes("API Key error: Please select a valid API key")) {
+          setHasApiKeySelected(false); // Reset API key selection state
+          setError(err.message);
+        } else {
+          setError(`An unexpected error occurred: ${err.message}`);
+        }
       } else {
         setError('An unknown error occurred during image enhancement.');
       }
@@ -132,6 +146,15 @@ function App() {
         <p className="mt-3 text-lg text-gray-600">
           Upload an image, tell the AI how to enhance it, and see the magic unfold!
         </p>
+        {/* API Key Status Indicator */}
+        <div className="mt-2 text-sm">
+          <span className="font-semibold">API Key Status: </span>
+          {hasApiKeySelected ? (
+            <span className="text-green-600">Selected</span>
+          ) : (
+            <span className="text-red-600">Not Selected</span>
+          )}
+        </div>
       </header>
 
       {!hasApiKeySelected && (
