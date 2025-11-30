@@ -9,8 +9,8 @@ import { saveHistoryItem, getHistory, clearHistory, removeHistoryItem } from './
 
 declare global {
   interface Window {
-    // Fix: Use the imported AIStudio interface by explicitly referencing its module
-    aistudio?: import('./types').AIStudio;
+    // Fix: Use the imported AIStudio interface by directly referencing its type name
+    aistudio?: AIStudio;
   }
 }
 
@@ -314,6 +314,7 @@ function App() {
 
         <EnhancedImageDisplay
           originalImage={originalImage}
+          originalImageMimeType={originalImageMimeType}
           enhancedImage={enhancedImage}
           onClearAll={handleClearAll}
           isLoading={isLoading}
