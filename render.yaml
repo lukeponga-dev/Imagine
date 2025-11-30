@@ -10,6 +10,6 @@ services:
         value: your-api-key-here   # 🔑 Replace with your actual API key
 
     # Optional rewrites for client-side routing (React Router, Vue Router, etc.)
-    rewrites:
-      - source: /*
-       destination: /index.html
+#    rewrites:
+     # - source: /*
+   #    destination: /index.html
