@@ -7,12 +7,11 @@ import { ApiError, AIStudio, HistoryItem } from './types'; // Updated import
 import { API_KEY_BILLING_URL, LOADING_MESSAGES, RESOLUTION_OPTIONS, DEFAULT_RESOLUTION } from './constants';
 import { saveHistoryItem, getHistory, clearHistory, removeHistoryItem } from './utils/historyStorage'; // New import
 
-declare global {
-  interface Window {
-    // Fix: Use the imported AIStudio interface by directly referencing its type name
-    aistudio?: AIStudio;
-  }
-}
+// Remove redundant `declare global` block for `window.aistudio`.
+// The AI Studio environment is expected to provide its own type definitions for `window.aistudio`,
+// making this local declaration a subsequent and conflicting one, despite defining the same type.
+// If not already globally typed by the environment, a new error "Property 'aistudio' does not exist on type 'Window'"
+// would occur, but given the specific error, it implies a pre-existing declaration.
 
 function App() {
   const [originalImage, setOriginalImage] = useState<string | undefined>(undefined);
