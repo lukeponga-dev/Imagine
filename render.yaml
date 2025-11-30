@@ -1,31 +1,17 @@
 # This file describes how your application is built and deployed on Render.com
 
-# A 'static' service is appropriate for frontend applications that generate static assets
-# after a build step (like React, Vue, Angular apps).
 services:
-  - type: static # Define this as a static site service
-    name: image-enhancer-ai # Name of your service, matching metadata.json
-
-    # The build command executes before deployment to compile your application.
-    # This typically involves installing dependencies and running a build script.
-    # We assume a 'package.json' with a 'build' script (e.g., 'vite build' or 'react-scripts build').
+  - type: static_site   # ✅ Correct type for static frontend apps
+    name: image-enhancer-ai
     buildCommand: npm install && npm run build
-
-    # The publish directory is where your compiled static assets are located after the build.
-    # For most modern React apps using bundlers like Vite or Create React App,
-    # this is commonly 'dist' or 'build'. We'll assume 'dist'.
     publishPath: dist
 
-    # Environment variables (like API_KEY) are typically set in the Render dashboard
-    # for static sites. They are injected into the client-side bundle during the build process
-    # by tools like Vite or Webpack, which replace `process.env.API_KEY` with the actual value.
-    # Example for `API_KEY` (configure this in Render dashboard):
+    # Optional environment variables (set in Render dashboard)
     # envVars:
-    #   - key: API_KEY
-    #     value: your-api-key-here # Replace with actual key or link to a secret
+    key: API_KEY
+        value: AIzaSyD8W8aco1C2t5remQyE
 
-    # Optional: If you're using client-side routing (e.g., React Router), you'll need rewrites
-    # to ensure that all paths fallback to your index.html.
-    # rewrites:
+    # Optional rewrites for client-side routing (React Router, etc.)
+  #   rewrites:
     #   - source: /*
     #     destination: /index.html
