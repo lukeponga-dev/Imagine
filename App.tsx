@@ -1,15 +1,16 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import ImageUploader from './components/ImageUploader';
 import EnhancedImageDisplay from './components/EnhancedImageDisplay';
+import UserProfileSection from './components/UserProfileSection'; // New import
 import { enhanceImage } from './services/geminiService';
-// Fix: Import AIStudio from types.ts
-import { ApiError, AIStudio } from './types';
+import { ApiError, AIStudio, HistoryItem } from './types'; // Updated import
 import { API_KEY_BILLING_URL, LOADING_MESSAGES, RESOLUTION_OPTIONS, DEFAULT_RESOLUTION } from './constants';
+import { saveHistoryItem, getHistory, clearHistory, removeHistoryItem } from './utils/historyStorage'; // New import
 
 declare global {
   interface Window {
-    // Fix: Use the imported AIStudio interface
-    aistudio?: AIStudio;
+    // Fix: Use the imported AIStudio interface by explicitly referencing its module
+    aistudio?: import('./types').AIStudio;
   }
 }
 
@@ -23,10 +24,16 @@ function App() {
   const [hasApiKeySelected, setHasApiKeySelected] = useState<boolean>(true);
   const [currentLoadingMessage, setCurrentLoadingMessage] = useState<string>('');
   const [selectedResolution, setSelectedResolution] = useState<string>(DEFAULT_RESOLUTION);
+  const [showHistory, setShowHistory] = useState<boolean>(false); // New state for history modal
+  const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]); // New state for history items
 
-  // Check API key status on component mount
+  // Check API key status and load history on component mount
   useEffect(() => {
-    const checkApiKey = async () => {
+    const initializeApp = async () => {
+      // Load history
+      setHistoryItems(getHistory());
+
+      // Check API Key
       if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
         const selected = await window.aistudio.hasSelectedApiKey();
         setHasApiKeySelected(selected);
@@ -35,7 +42,7 @@ function App() {
         setHasApiKeySelected(!!process.env.API_KEY);
       }
     };
-    checkApiKey();
+    initializeApp();
   }, []);
 
   // Cycle through loading messages
@@ -95,6 +102,21 @@ function App() {
     try {
       const result = await enhanceImage(originalImage, prompt, originalImageMimeType, selectedResolution);
       setEnhancedImage(result);
+
+      // Save to history upon successful enhancement
+      if (result) {
+        const newHistoryItem: HistoryItem = {
+          id: crypto.randomUUID(), // Generate a unique ID for the history item
+          originalImage: originalImage,
+          originalImageMimeType: originalImageMimeType,
+          prompt: prompt,
+          enhancedImage: result,
+          timestamp: Date.now(),
+          resolution: selectedResolution,
+        };
+        saveHistoryItem(newHistoryItem);
+        setHistoryItems(getHistory()); // Refresh history state
+      }
     } catch (err: unknown) {
       console.error('Enhancement Error:', err);
       if (err instanceof ApiError) {
@@ -145,6 +167,20 @@ function App() {
     }
   }, []);
 
+  const handleOpenHistory = useCallback(() => setShowHistory(true), []);
+  const handleCloseHistory = useCallback(() => setShowHistory(false), []);
+
+  const handleRemoveHistoryItem = useCallback((id: string) => {
+    removeHistoryItem(id);
+    setHistoryItems(getHistory()); // Refresh state after removal
+  }, []);
+
+  const handleClearAllHistory = useCallback(() => {
+    clearHistory();
+    setHistoryItems([]); // Clear state
+  }, []);
+
+
   const isEnhanceButtonDisabled = useMemo(() => {
     return isLoading || !originalImage || !prompt || !hasApiKeySelected;
   }, [isLoading, originalImage, prompt, hasApiKeySelected]);
@@ -158,14 +194,20 @@ function App() {
         <p className="mt-3 text-lg text-gray-600">
           Upload an image, tell the AI how to enhance it, and see the magic unfold!
         </p>
-        {/* API Key Status Indicator */}
-        <div className="mt-2 text-sm">
+        <div className="mt-2 flex justify-center items-center gap-4 text-sm">
           <span className="font-semibold">API Key Status: </span>
           {hasApiKeySelected ? (
             <span className="text-green-600">Selected</span>
           ) : (
             <span className="text-red-600">Not Selected</span>
           )}
+          <button
+            onClick={handleOpenHistory}
+            className="px-3 py-1 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-colors text-sm font-medium"
+            aria-label="View past enhancements"
+          >
+            History
+          </button>
         </div>
       </header>
 
@@ -277,6 +319,15 @@ function App() {
           isLoading={isLoading}
         />
       </main>
+
+      {showHistory && (
+        <UserProfileSection
+          history={historyItems}
+          onClose={handleCloseHistory}
+          onRemoveItem={handleRemoveHistoryItem}
+          onClearAll={handleClearAllHistory}
+        />
+      )}
     </div>
   );
 }

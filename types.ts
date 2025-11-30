@@ -18,7 +18,7 @@ export interface ApiResponsePart {
 // Define the global AIStudio interface as per the coding guidelines.
 export interface AIStudio {
   hasSelectedApiKey: () => Promise<boolean>;
-  openSelectKey: () => Promise<void>;
+    openSelectKey: () => Promise<void>;
 }
 
 export class ApiError extends Error {
@@ -37,4 +37,14 @@ export class ApiError extends Error {
     // and for correct instanceof checks.
     Object.setPrototypeOf(this, ApiError.prototype);
   }
+}
+
+export interface HistoryItem {
+  id: string; // Unique ID for the item
+  originalImage: string;
+  originalImageMimeType: string;
+  prompt: string;
+  enhancedImage: string;
+  timestamp: number; // Unix timestamp
+  resolution: string;
 }
