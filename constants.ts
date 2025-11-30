@@ -17,3 +17,5 @@ export const RESOLUTION_OPTIONS = [
 ];
 
 export const DEFAULT_RESOLUTION = '1K';
+
+export const UPSCALER_DEFAULT_PROMPT = 'Upscale this image to a higher resolution, preserving all original details and enhancing sharpness.';

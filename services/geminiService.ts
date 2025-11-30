@@ -1,5 +1,4 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
-// Fix: Import ApiError as a class, not just a type
 import { ImagePart, ApiResponsePart, ApiError } from '../types';
 import { GEMINI_IMAGE_MODEL } from '../constants';
 

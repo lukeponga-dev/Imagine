@@ -5,12 +5,11 @@ import EnhancedImageDisplay from './components/EnhancedImageDisplay';
 import UserProfileSection from './components/UserProfileSection'; // New import
 import { enhanceImage } from './services/geminiService';
 import { ApiError, AIStudio, HistoryItem } from './types'; // Updated import
-import { API_KEY_BILLING_URL, LOADING_MESSAGES, RESOLUTION_OPTIONS, DEFAULT_RESOLUTION } from './constants';
+import { API_KEY_BILLING_URL, LOADING_MESSAGES, RESOLUTION_OPTIONS, DEFAULT_RESOLUTION, UPSCALER_DEFAULT_PROMPT } from './constants';
 import { saveHistoryItem, getHistory, clearHistory, removeHistoryItem } from './utils/historyStorage'; // New import
 
-// The AI Studio environment is expected to provide its own type definitions for `window.aistudio`.
-// If not already globally typed by the environment, you might need to add a `declare global` block
-// in `types.ts` to augment the `Window` interface if TypeScript complains about `window.aistudio`.
+
+type TaskType = 'enhance' | 'upscale'; // Add more task types here as features are added
 
 function App() {
   const [originalImage, setOriginalImage] = useState<string | undefined>(undefined);
@@ -24,6 +23,7 @@ function App() {
   const [selectedResolution, setSelectedResolution] = useState<string>(DEFAULT_RESOLUTION);
   const [showHistory, setShowHistory] = useState<boolean>(false); // New state for history modal
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]); // New state for history items
+  const [selectedTask, setSelectedTask] = useState<TaskType>('enhance'); // New state for task type
 
   // Check API key status and load history on component mount
   useEffect(() => {
@@ -33,8 +33,15 @@ function App() {
 
       // Check API Key
       if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
-        const selected = await window.aistudio.hasSelectedApiKey();
-        setHasApiKeySelected(selected);
+        try {
+          const selected = await window.aistudio.hasSelectedApiKey();
+          setHasApiKeySelected(selected);
+        } catch (e) {
+          console.error("Error checking API key status:", e);
+          // If hasSelectedApiKey throws, assume not selected or an error occurred
+          setHasApiKeySelected(false);
+          setError("Failed to check API key status. Please try selecting it.");
+        }
       } else {
         // Fallback for environments where window.aistudio might not be available
         setHasApiKeySelected(!!process.env.API_KEY);
@@ -76,10 +83,19 @@ function App() {
     handleClearOriginalImage();
   }, [handleClearOriginalImage]);
 
-  const handleEnhanceClick = useCallback(async () => {
-    if (!originalImage || !prompt || !originalImageMimeType) {
-      setError('Please upload an image and provide an enhancement prompt.');
+  const handleProcessImage = useCallback(async () => {
+    if (!originalImage || !originalImageMimeType) {
+      setError('Please upload an image.');
       return;
+    }
+
+    let actualPrompt = prompt.trim();
+    if (selectedTask === 'enhance' && actualPrompt === '') {
+      setError('Please provide a prompt for image enhancement.');
+      return;
+    }
+    if (selectedTask === 'upscale' && actualPrompt === '') {
+      actualPrompt = UPSCALER_DEFAULT_PROMPT; // Use default prompt for upscale if user didn't provide one
     }
 
     if (!process.env.API_KEY) {
@@ -89,7 +105,7 @@ function App() {
     }
 
     if (!hasApiKeySelected) {
-      setError('Please select your API key before enhancing images.');
+      setError('Please select your API key before processing images.');
       return;
     }
 
@@ -98,7 +114,7 @@ function App() {
     setEnhancedImage(undefined);
 
     try {
-      const result = await enhanceImage(originalImage, prompt, originalImageMimeType, selectedResolution);
+      const result = await enhanceImage(originalImage, actualPrompt, originalImageMimeType, selectedResolution);
       setEnhancedImage(result);
 
       // Save to history upon successful enhancement
@@ -107,7 +123,8 @@ function App() {
           id: crypto.randomUUID(), // Generate a unique ID for the history item
           originalImage: originalImage,
           originalImageMimeType: originalImageMimeType,
-          prompt: prompt,
+          // Store the actual prompt used for the API call (either user input or default upscale prompt)
+          prompt: actualPrompt,
           enhancedImage: result,
           timestamp: Date.now(),
           resolution: selectedResolution,
@@ -116,9 +133,9 @@ function App() {
         setHistoryItems(getHistory()); // Refresh history state
       }
     } catch (err: unknown) {
-      console.error('Enhancement Error:', err);
+      console.error('Image Processing Error:', err);
       if (err instanceof ApiError) {
-        let userMessage = 'Enhancement failed. Please try again.';
+        let userMessage = 'Image processing failed. Please try again.';
         if (err.statusCode === 401 || err.errorType === 'API_KEY_INVALID') {
           setHasApiKeySelected(false);
           userMessage = `API Key Invalid or Missing Permissions: ${err.message}. Please re-select your API key.`;
@@ -142,12 +159,12 @@ function App() {
           setError(`An unexpected error occurred: ${err.message}`);
         }
       } else {
-        setError('An unknown error occurred during image enhancement.');
+        setError('An unknown error occurred during image processing.');
       }
     } finally {
       setIsLoading(false);
     }
-  }, [originalImage, prompt, originalImageMimeType, hasApiKeySelected, selectedResolution]);
+  }, [originalImage, prompt, originalImageMimeType, hasApiKeySelected, selectedResolution, selectedTask]);
 
   const handleSelectApiKey = useCallback(async () => {
     if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
@@ -179,9 +196,26 @@ function App() {
   }, []);
 
 
-  const isEnhanceButtonDisabled = useMemo(() => {
-    return isLoading || !originalImage || !prompt || !hasApiKeySelected;
-  }, [isLoading, originalImage, prompt, hasApiKeySelected]);
+  const isProcessButtonDisabled = useMemo(() => {
+    // If enhancing, prompt is required. If upscaling, prompt is optional.
+    const isPromptMissingForEnhance = selectedTask === 'enhance' && !prompt.trim();
+    return isLoading || !originalImage || isPromptMissingForEnhance || !hasApiKeySelected;
+  }, [isLoading, originalImage, prompt, hasApiKeySelected, selectedTask]);
+
+  const promptPlaceholder = useMemo(() => {
+    if (selectedTask === 'upscale') {
+      return "Optional: Add specific details for upscaling (e.g., 'sharpen edges', 'reduce noise')";
+    }
+    return "e.g., 'Make it look more vibrant and artistic', 'Change the background to a starry night', 'Sharpen the details and increase contrast'";
+  }, [selectedTask]);
+
+  const processButtonText = useMemo(() => {
+    if (selectedTask === 'upscale') {
+      return "Upscale Image";
+    }
+    return "Enhance Image";
+  }, [selectedTask]);
+
 
   return (
     <> {/* Added React Fragment wrapper */}
@@ -254,15 +288,37 @@ function App() {
 
           {originalImage && (
             <div className="sticky bottom-0 left-0 right-0 p-5 bg-white border-t border-gray-200 shadow-xl rounded-t-xl z-10 flex flex-col md:flex-row items-center gap-5">
+              {/* Task Selector */}
+              <div className="flex items-center gap-2 bg-gray-100 p-1.5 rounded-full shadow-inner flex-shrink-0">
+                <button
+                  className={`px-4 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
+                    selectedTask === 'enhance' ? 'bg-blue-600 text-white shadow' : 'text-gray-700 hover:bg-gray-200'
+                  }`}
+                  onClick={() => setSelectedTask('enhance')}
+                  disabled={isLoading}
+                >
+                  Enhance
+                </button>
+                <button
+                  className={`px-4 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
+                    selectedTask === 'upscale' ? 'bg-blue-600 text-white shadow' : 'text-gray-700 hover:bg-gray-200'
+                  }`}
+                  onClick={() => setSelectedTask('upscale')}
+                  disabled={isLoading}
+                >
+                  Upscale
+                </button>
+              </div>
+
               <input
                 type="text"
-                placeholder="e.g., 'Make it look more vibrant and artistic', 'Change the background to a starry night', 'Sharpen the details and increase contrast'"
+                placeholder={promptPlaceholder}
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 disabled={isLoading}
                 className="flex-grow p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed text-gray-800 placeholder-gray-500 shadow-sm"
               />
-              <div className="flex flex-col sm:flex-row items-center gap-3">
+              <div className="flex flex-col sm:flex-row items-center gap-3 flex-shrink-0">
                 <label htmlFor="resolution-select" className="text-gray-700 text-base font-medium whitespace-nowrap">Resolution:</label>
                 <select
                   id="resolution-select"
@@ -279,8 +335,8 @@ function App() {
                 </select>
               </div>
               <button
-                onClick={handleEnhanceClick}
-                disabled={isEnhanceButtonDisabled}
+                onClick={handleProcessImage}
+                disabled={isProcessButtonDisabled}
                 className="w-full md:w-auto px-8 py-4 bg-blue-600 text-white font-bold rounded-full hover:bg-blue-700 transition-transform transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 text-lg"
               >
                 {isLoading && (
@@ -289,7 +345,7 @@ function App() {
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                 )}
-                Enhance Image
+                {processButtonText}
               </button>
             </div>
           )}

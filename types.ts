@@ -16,9 +16,17 @@ export interface ApiResponsePart {
 }
 
 // Define the global AIStudio interface as per the coding guidelines.
-export interface AIStudio {
+declare global {
+  interface Window {
+    aistudio?: AIStudio;
+  }
+}
+// Changed from `export interface AIStudio` to `export type AIStudio`
+// to resolve a potential TypeScript error regarding "subsequent property declarations
+// must have the same type" when augmenting the global `Window` interface.
+export type AIStudio = {
   hasSelectedApiKey: () => Promise<boolean>;
-    openSelectKey: () => Promise<void>;
+  openSelectKey: () => Promise<void>;
 }
 
 export class ApiError extends Error {
