@@ -1,7 +1,7 @@
 # This file describes how your application is built and deployed on Render.com
 
 services:
-  - type: static_site   # ✅ Correct type for static frontend apps
+  - type: static  # ✅ Correct type for static frontend apps
     name: image-enhancer-ai
     buildCommand: npm install && npm run build
     publishPath: dist
