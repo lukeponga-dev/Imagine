@@ -73,15 +73,15 @@ const EnhancedImageDisplay: React.FC<EnhancedImageDisplayProps> = React.memo(
     const hasBothImages = originalImage && enhancedImage;
 
     return (
-      <div className="flex flex-col items-center gap-6 p-4 md:p-6 bg-white rounded-lg shadow-md w-full">
-        <h3 className="text-xl font-semibold text-gray-800">Results</h3>
+      <div className="flex flex-col items-center gap-8 p-6 bg-white rounded-xl shadow-lg w-full">
+        <h3 className="text-2xl font-bold text-gray-800">Results</h3>
 
         {hasBothImages ? (
           <>
             {/* Slider Comparison View */}
             <div
               ref={containerRef}
-              className="relative w-full max-w-4xl h-96 bg-gray-200 rounded-md overflow-hidden cursor-ew-resize select-none"
+              className="relative w-full max-w-4xl h-96 bg-gray-100 rounded-xl overflow-hidden cursor-ew-resize select-none border border-gray-200 group"
               onMouseMove={handleMouseMove}
               onMouseLeave={handleMouseUp}
               onMouseUp={handleMouseUp}
@@ -111,7 +111,7 @@ const EnhancedImageDisplay: React.FC<EnhancedImageDisplayProps> = React.memo(
 
               {/* Slider Handle */}
               <div
-                className="absolute top-0 bottom-0 w-1 bg-blue-500 cursor-ew-resize flex items-center justify-center group z-10"
+                className="absolute top-0 bottom-0 w-1.5 bg-blue-500 cursor-ew-resize flex items-center justify-center group-hover:scale-x-125 transition-transform duration-200 z-10"
                 style={{ left: `${sliderPosition}%`, transform: 'translateX(-50%)' }}
                 onMouseDown={handleMouseDown}
                 onKeyDown={handleKeyDown}
@@ -124,7 +124,7 @@ const EnhancedImageDisplay: React.FC<EnhancedImageDisplayProps> = React.memo(
                 aria-label="Image comparison slider handle"
               >
                 {/* Visible handle */}
-                <div className="w-8 h-8 rounded-full bg-blue-500 border-2 border-white shadow-md group-hover:scale-110 transition-transform"></div>
+                <div className="w-9 h-9 rounded-full bg-blue-600 border-2 border-white shadow-lg group-hover:scale-110 transition-transform duration-200"></div>
               </div>
             </div>
 
@@ -132,44 +132,50 @@ const EnhancedImageDisplay: React.FC<EnhancedImageDisplayProps> = React.memo(
               <button
                 onClick={handleDownload}
                 disabled={isLoading}
-                className="px-4 py-2 bg-green-500 text-white font-semibold rounded-md hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+                className="px-6 py-3 bg-green-600 text-white font-bold rounded-full hover:bg-green-700 transition-transform transform hover:scale-105 shadow-md disabled:opacity-50 disabled:cursor-not-allowed mt-2 flex items-center gap-2"
               >
-                Download Image
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+                Download Enhanced Image
               </button>
             )}
           </>
         ) : (
           // Existing Side-by-Side or Placeholder View
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
             {originalImage && (
-              <div className="flex flex-col items-center gap-2">
-                <h4 className="text-lg font-medium text-gray-700">Original Image</h4>
-                <div className="w-full h-80 bg-gray-200 rounded-md flex items-center justify-center overflow-hidden">
+              <div className="flex flex-col items-center gap-3">
+                <h4 className="text-xl font-semibold text-gray-700">Original Image</h4>
+                <div className="w-full h-80 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden border border-gray-200 shadow-sm">
                   <img src={`data:${originalImageMimeType || 'image/png'};base64,${originalImage}`} alt="Original" className="object-contain max-w-full max-h-full" />
                 </div>
               </div>
             )}
 
             {enhancedImage ? (
-              <div className="flex flex-col items-center gap-2">
-                <h4 className="text-lg font-medium text-gray-700">Enhanced Image</h4>
-                <div className="w-full h-80 bg-gray-200 rounded-md flex items-center justify-center overflow-hidden">
+              <div className="flex flex-col items-center gap-3">
+                <h4 className="text-xl font-semibold text-gray-700">Enhanced Image</h4>
+                <div className="w-full h-80 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden border border-gray-200 shadow-sm">
                   <img src={`data:image/png;base64,${enhancedImage}`} alt="Enhanced" className="object-contain max-w-full max-h-full" />
                 </div>
                 <button
                   onClick={handleDownload}
                   disabled={isLoading}
-                  className="px-4 py-2 bg-green-500 text-white font-semibold rounded-md hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+                  className="px-6 py-3 bg-green-600 text-white font-bold rounded-full hover:bg-green-700 transition-transform transform hover:scale-105 shadow-md disabled:opacity-50 disabled:cursor-not-allowed mt-2 flex items-center gap-2"
                 >
-                  Download Image
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                  Download Enhanced Image
                 </button>
               </div>
             ) : (
               originalImage && (
-                <div className="flex flex-col items-center gap-2">
-                  <h4 className="text-lg font-medium text-gray-700">Enhanced Image</h4>
-                  <div className="w-full h-80 bg-gray-100 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center">
-                    <p className="text-gray-500 text-center">Your enhanced image will appear here.</p>
+                <div className="flex flex-col items-center gap-3">
+                  <h4 className="text-xl font-semibold text-gray-700">Enhanced Image</h4>
+                  <div className="w-full h-80 bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center shadow-inner">
+                    <p className="text-gray-500 text-center px-4">Your enhanced image will appear here.</p>
                   </div>
                 </div>
               )
@@ -181,8 +187,11 @@ const EnhancedImageDisplay: React.FC<EnhancedImageDisplayProps> = React.memo(
           <button
             onClick={onClearAll}
             disabled={isLoading}
-            className="px-6 py-3 bg-red-600 text-white font-bold rounded-full hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-4"
+            className="px-8 py-4 bg-red-600 text-white font-bold rounded-full hover:bg-red-700 transition-transform transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mt-4 flex items-center gap-2"
           >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 11-2 0v6a1 1 0 112 0V8z" clipRule="evenodd" />
+            </svg>
             Clear All
           </button>
         )}

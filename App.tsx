@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import ImageUploader from './components/ImageUploader';
 import EnhancedImageDisplay from './components/EnhancedImageDisplay';
@@ -7,11 +8,9 @@ import { ApiError, AIStudio, HistoryItem } from './types'; // Updated import
 import { API_KEY_BILLING_URL, LOADING_MESSAGES, RESOLUTION_OPTIONS, DEFAULT_RESOLUTION } from './constants';
 import { saveHistoryItem, getHistory, clearHistory, removeHistoryItem } from './utils/historyStorage'; // New import
 
-// Remove redundant `declare global` block for `window.aistudio`.
-// The AI Studio environment is expected to provide its own type definitions for `window.aistudio`,
-// making this local declaration a subsequent and conflicting one, despite defining the same type.
-// If not already globally typed by the environment, a new error "Property 'aistudio' does not exist on type 'Window'"
-// would occur, but given the specific error, it implies a pre-existing declaration.
+// The AI Studio environment is expected to provide its own type definitions for `window.aistudio`.
+// If not already globally typed by the environment, you might need to add a `declare global` block
+// in `types.ts` to augment the `Window` interface if TypeScript complains about `window.aistudio`.
 
 function App() {
   const [originalImage, setOriginalImage] = useState<string | undefined>(undefined);
@@ -185,150 +184,174 @@ function App() {
   }, [isLoading, originalImage, prompt, hasApiKeySelected]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center p-4 md:p-8 bg-gradient-to-br from-blue-50 to-indigo-100 font-sans text-gray-800">
-      <header className="w-full max-w-4xl text-center mb-8">
-        <h1 className="text-4xl md:text-5xl font-extrabold text-blue-700 tracking-tight">
-          Image Enhancer AI
-        </h1>
-        <p className="mt-3 text-lg text-gray-600">
-          Upload an image, tell the AI how to enhance it, and see the magic unfold!
-        </p>
-        <div className="mt-2 flex justify-center items-center gap-4 text-sm">
-          <span className="font-semibold">API Key Status: </span>
-          {hasApiKeySelected ? (
-            <span className="text-green-600">Selected</span>
-          ) : (
-            <span className="text-red-600">Not Selected</span>
-          )}
-          <button
-            onClick={handleOpenHistory}
-            className="px-3 py-1 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-colors text-sm font-medium"
-            aria-label="View past enhancements"
-          >
-            History
-          </button>
-        </div>
-      </header>
-
-      {!hasApiKeySelected && (
-        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6 rounded-md shadow-sm w-full max-w-2xl text-center">
-          <p className="font-semibold mb-2">API Key Required!</p>
-          <p className="mb-3">
-            To use the powerful Gemini Pro Vision model, you need to select a valid API key from a
-            <a href={API_KEY_BILLING_URL} target="_blank" rel="noopener noreferrer" className="text-yellow-800 underline ml-1">paid GCP project</a>.
+    <> {/* Added React Fragment wrapper */}
+      <div className="min-h-screen flex flex-col items-center p-4 md:p-8 bg-gradient-to-br from-blue-50 to-indigo-100 font-sans text-gray-800">
+        <header className="w-full max-w-4xl text-center mb-10">
+          <h1 className="text-5xl md:text-6xl font-extrabold text-blue-700 tracking-tighter drop-shadow-lg animate-fade-in">
+            Image Enhancer AI
+          </h1>
+          <p className="mt-4 text-xl text-gray-700 animate-slide-up">
+            Upload an image, tell the AI how to enhance it, and see the magic unfold!
           </p>
-          <button
-            onClick={handleSelectApiKey}
-            className="px-6 py-2 bg-yellow-600 text-white font-bold rounded-full hover:bg-yellow-700 transition-colors disabled:opacity-50"
-          >
-            Select API Key
-          </button>
-        </div>
-      )}
-
-      <main className="flex flex-col gap-8 w-full max-w-4xl">
-        <ImageUploader
-          onImageSelected={handleImageSelected}
-          onClear={handleClearOriginalImage}
-          isLoading={isLoading}
-          currentImage={originalImage}
-        />
-
-        {originalImage && (
-          <div className="sticky bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200 shadow-lg rounded-t-lg z-10 flex flex-col md:flex-row items-center gap-4">
-            <input
-              type="text"
-              placeholder="e.g., 'Make it look more vibrant and artistic', 'Change the background to a starry night', 'Sharpen the details and increase contrast'"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              disabled={isLoading}
-              className="flex-grow p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed text-gray-700"
-            />
-            <div className="flex flex-col md:flex-row items-center gap-2">
-              <label htmlFor="resolution-select" className="text-gray-700 text-sm md:text-base font-medium whitespace-nowrap">Resolution:</label>
-              <select
-                id="resolution-select"
-                value={selectedResolution}
-                onChange={(e) => setSelectedResolution(e.target.value)}
-                disabled={isLoading}
-                className="p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed text-gray-700 w-full md:w-auto"
-              >
-                {RESOLUTION_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button
-              onClick={handleEnhanceClick}
-              disabled={isEnhanceButtonDisabled}
-              className="w-full md:w-auto px-6 py-3 bg-blue-600 text-white font-bold rounded-full hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {isLoading && (
-                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          <div className="mt-5 flex justify-center items-center gap-6 text-base">
+            <span className="font-semibold text-gray-700">API Key Status: </span>
+            {hasApiKeySelected ? (
+              <span className="text-green-600 font-medium flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
-              )}
-              Enhance Image
+                Selected
+              </span>
+            ) : (
+              <span className="text-red-600 font-medium flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0v-4a1 1 0 112 0v4zm-1-9a1 1 0 100 2 1 1 0 000-2z" clipRule="evenodd" />
+                </svg>
+                Not Selected
+              </span>
+            )}
+            <button
+              onClick={handleOpenHistory}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-colors shadow-sm text-sm font-medium"
+              aria-label="View past enhancements"
+            >
+              <span className="hidden sm:inline">View </span>History
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline-block ml-1 -mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </button>
+          </div>
+        </header>
+
+        {!hasApiKeySelected && (
+          <div className="bg-yellow-50 border-l-4 border-yellow-500 text-yellow-800 p-5 mb-8 rounded-lg shadow-md w-full max-w-2xl text-center flex flex-col items-center">
+            <p className="font-bold text-xl mb-3 flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              API Key Required!
+            </p>
+            <p className="mb-4 text-gray-700">
+              To unlock the full potential of Gemini Pro Vision, please select a valid API key from a
+              <a href={API_KEY_BILLING_URL} target="_blank" rel="noopener noreferrer" className="text-yellow-700 underline font-medium ml-1 hover:text-yellow-900 transition-colors">paid GCP project</a>.
+            </p>
+            <button
+              onClick={handleSelectApiKey}
+              className="px-8 py-3 bg-yellow-600 text-white font-bold rounded-full hover:bg-yellow-700 transition-transform transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Select API Key
             </button>
           </div>
         )}
 
-        {isLoading && (
-          <div className="flex flex-col items-center justify-center p-6 bg-blue-50 rounded-lg shadow-inner w-full max-w-xl mx-auto mt-4">
-            <svg className="animate-bounce h-12 w-12 text-blue-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-            <p className="text-blue-700 text-lg font-medium text-center animate-pulse">
-              {currentLoadingMessage}
-            </p>
-            <p className="text-blue-500 text-sm mt-2 text-center">
-              Image generation can take a moment. Please be patient.
-            </p>
-          </div>
-        )}
+        <main className="flex flex-col gap-10 w-full max-w-4xl">
+          <ImageUploader
+            onImageSelected={handleImageSelected}
+            onClear={handleClearOriginalImage}
+            isLoading={isLoading}
+            currentImage={originalImage}
+          />
 
-        {error && (
-          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mt-6 rounded-md shadow-sm w-full max-w-2xl mx-auto">
-            <p className="font-bold">Error:</p>
-            <p>{error}</p>
-            {(error.includes("API Key Invalid") || error.includes("API Key error")) && (
+          {originalImage && (
+            <div className="sticky bottom-0 left-0 right-0 p-5 bg-white border-t border-gray-200 shadow-xl rounded-t-xl z-10 flex flex-col md:flex-row items-center gap-5">
+              <input
+                type="text"
+                placeholder="e.g., 'Make it look more vibrant and artistic', 'Change the background to a starry night', 'Sharpen the details and increase contrast'"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                disabled={isLoading}
+                className="flex-grow p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed text-gray-800 placeholder-gray-500 shadow-sm"
+              />
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                <label htmlFor="resolution-select" className="text-gray-700 text-base font-medium whitespace-nowrap">Resolution:</label>
+                <select
+                  id="resolution-select"
+                  value={selectedResolution}
+                  onChange={(e) => setSelectedResolution(e.target.value)}
+                  disabled={isLoading}
+                  className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed text-gray-800 shadow-sm w-full sm:w-auto"
+                >
+                  {RESOLUTION_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <button
-                onClick={handleSelectApiKey}
-                className="mt-3 px-4 py-2 bg-red-600 text-white font-semibold rounded-md hover:bg-red-700 transition-colors"
+                onClick={handleEnhanceClick}
+                disabled={isEnhanceButtonDisabled}
+                className="w-full md:w-auto px-8 py-4 bg-blue-600 text-white font-bold rounded-full hover:bg-blue-700 transition-transform transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 text-lg"
               >
-                Re-select API Key
+                {isLoading && (
+                  <svg className="animate-spin h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                )}
+                Enhance Image
               </button>
-            )}
-            {/* Added a general recommendation for non-key related errors if appropriate */}
-            {!error.includes("API Key") && !error.includes("Invalid Request") && (
-              <p className="text-sm mt-2">
-                If the problem persists, try a different prompt or image.
+            </div>
+          )}
+
+          {isLoading && (
+            <div className="flex flex-col items-center justify-center p-8 bg-blue-50 rounded-xl shadow-lg w-full max-w-xl mx-auto mt-6 border border-blue-200">
+              <svg className="animate-pulse-fast h-16 w-16 text-blue-600 mb-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <p className="text-blue-800 text-xl font-semibold text-center animate-pulse-slow">
+                {currentLoadingMessage}
               </p>
-            )}
-          </div>
+              <p className="text-blue-600 text-sm mt-3 text-center">
+                Image generation can take a moment. Please be patient.
+              </p>
+            </div>
+          )}
+
+          {error && (
+            <div className="bg-red-50 border-l-4 border-red-500 text-red-800 p-5 mt-6 rounded-lg shadow-md w-full max-w-2xl mx-auto">
+              <p className="font-bold text-lg mb-2 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Error:
+              </p>
+              <p className="mb-3 text-gray-700">{error}</p>
+              {(error.includes("API Key Invalid") || error.includes("API Key error")) && (
+                <button
+                  onClick={handleSelectApiKey}
+                  className="mt-3 px-6 py-2 bg-red-600 text-white font-semibold rounded-full hover:bg-red-700 transition-colors shadow-md"
+                >
+                  Re-select API Key
+                </button>
+              )}
+              {!error.includes("API Key") && !error.includes("Invalid Request") && (
+                <p className="text-sm mt-3 text-gray-600">
+                  If the problem persists, try a different prompt or image.
+                </p>
+              )}
+            </div>
+          )}
+
+          <EnhancedImageDisplay
+            originalImage={originalImage}
+            originalImageMimeType={originalImageMimeType}
+            enhancedImage={enhancedImage}
+            onClearAll={handleClearAll}
+            isLoading={isLoading}
+          />
+        </main>
+
+        {showHistory && (
+          <UserProfileSection
+            history={historyItems}
+            onClose={handleCloseHistory}
+            onRemoveItem={handleRemoveHistoryItem}
+            onClearAll={handleClearAllHistory}
+          />
         )}
-
-        <EnhancedImageDisplay
-          originalImage={originalImage}
-          originalImageMimeType={originalImageMimeType}
-          enhancedImage={enhancedImage}
-          onClearAll={handleClearAll}
-          isLoading={isLoading}
-        />
-      </main>
-
-      {showHistory && (
-        <UserProfileSection
-          history={historyItems}
-          onClose={handleCloseHistory}
-          onRemoveItem={handleRemoveHistoryItem}
-          onClearAll={handleClearAllHistory}
-        />
-      )}
-    </div>
+      </div>
+    </> // Closing React Fragment wrapper
   );
 }
 
