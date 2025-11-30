@@ -8,10 +8,10 @@ services:
 
     # Optional environment variables (set in Render dashboard)
     # envVars:
-    key: API_KEY
-        value: AIzaSyD8W8aco1C2t5remQyE
+    #   - key: API_KEY
+    #     value: your-api-key-here
 
     # Optional rewrites for client-side routing (React Router, etc.)
-  #   rewrites:
+    # rewrites:
     #   - source: /*
     #     destination: /index.html
